@@ -1,13 +1,16 @@
 from algosdk.v2client import algod
-from algosdk import transaction, account
+from algosdk import transaction, account, logic
 from algosdk.mnemonic import to_private_key
 from contracts.atm import approval_program, clear_state_program
 from utils import compile_program, create_app, wait_for_confirmation
 from env_parameters import get_env
 
+
 def deploy_contract(algod_client, mnemonic_phrase):
-    approval_program_compiled = compile_program(algod_client, approval_program())
-    clear_program_compiled = compile_program(algod_client, clear_state_program())
+    approval_program_compiled = compile_program(
+        algod_client, approval_program())
+    clear_program_compiled = compile_program(
+        algod_client, clear_state_program())
 
     create_app(
         algod_client,
@@ -19,49 +22,80 @@ def deploy_contract(algod_client, mnemonic_phrase):
         [],
     )
 
+
 def pay_transaction(algod_client, mnemonic_phrase, receiver_address, amount):
-    sender_address = account.address_from_private_key(to_private_key(mnemonic_phrase))
+    sender_address = account.address_from_private_key(
+        to_private_key(mnemonic_phrase))
     params = algod_client.suggested_params()
-    
+
     params.flat_fee = True
     params.fee = 1000
-    
+
     txn = transaction.PaymentTxn(
         sender=sender_address,
         sp=params,
         receiver=receiver_address,
         amt=amount,
     )
-    
+
     return txn
 
-def call_deposit(algod_client, mnemonic_phrase, app_id, app_args):
-    creator_address = account.address_from_private_key(to_private_key(mnemonic_phrase))
+
+def call_deposit(algod_client, mnemonic_phrase, app_id, amount, app_args):
+    creator_address = account.address_from_private_key(
+        to_private_key(mnemonic_phrase))
     params = algod_client.suggested_params()
-    
+
     params.flat_fee = True
     params.fee = 1000
-    
+
     txn = transaction.ApplicationNoOpTxn(
         sender=creator_address,
         sp=params,
         index=app_id,
         app_args=app_args,
     )
-    
-    application_address = "F5V5DXGM7YKBE2XN7UI7IWJEOFINZ4LCHH3AQPG52CZWGPJLNVTFFXKJTI"
-    payment_txn = pay_transaction(algod_client, mnemonic_phrase, application_address, 1000)
+
+    application_address = logic.get_application_address(app_id)
+    payment_txn = pay_transaction(
+        algod_client, mnemonic_phrase, application_address, amount)
     transaction.assign_group_id([txn, payment_txn])
-    
+
     signed_txn = txn.sign(to_private_key(mnemonic_phrase))
     signed_payment_txn = payment_txn.sign(to_private_key(mnemonic_phrase))
     tx_id = signed_txn.transaction.get_txid()
-    
-    transaction_response = algod_client.send_transactions([signed_txn, signed_payment_txn])
-    
+
+    transaction_response = algod_client.send_transactions(
+        [signed_txn, signed_payment_txn])
+
     wait_for_confirmation(algod_client, tx_id)
     print("Txn hash:", transaction_response)
-    
+
+
+def call_withdraw(algod_client, mnemonic_phrase, app_id, app_args):
+    user_address = account.address_from_private_key(
+        to_private_key(mnemonic_phrase))
+    params = algod_client.suggested_params()
+
+    params.flat_fee = True
+    params.fee = 1000
+
+    txn = transaction.ApplicationNoOpTxn(
+        sender=user_address,
+        sp=params,
+        index=app_id,
+        app_args=app_args,
+    )
+
+    signed_txn = txn.sign(to_private_key(mnemonic_phrase))
+    tx_id = signed_txn.transaction.get_txid()
+
+    transaction_response = algod_client.send_transactions([signed_txn])
+
+    wait_for_confirmation(algod_client, tx_id)
+    print("Txn hash:", transaction_response)
+
+
 def main():
     env = get_env()
 
@@ -69,13 +103,15 @@ def main():
         env.algod_token,
         env.algod_address,
     )
-    
-    app_id = 722616863
+
+    app_id = 722627808
     # deploy_contract(algod_client, env.mnemonic_phrase)
 
-    # call_deposit(algod_client, env.mnemonic_phrase, app_id, ["ACCOUNT_1"])
+    call_deposit(algod_client, env.mnemonic_phrase,
+                 app_id, 1500, ["deposit", "ACCOUNT_1"])
 
-    
+    call_withdraw(algod_client, env.mnemonic_phrase,
+                  app_id, ["withdraw", "ACCOUNT_1", 1000])
 
 
 def create_global_schema():

@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 def get_env():
     """
     Prende le variabili d'ambiente (.env) e le restituisce in un oggetto Pydantic.
@@ -15,9 +16,9 @@ def get_env():
             self.algod_address = algod_address
             self.indexer_address = indexer_address
             self.algod_token = algod_token
-    
+
     env = None
-    
+
     if len(sys.argv) > 1 and sys.argv[1] == "local":
         env = Env(
             mnemonic_phrase=os.getenv("LOCAL_MNEMONIC_PHRASE"),

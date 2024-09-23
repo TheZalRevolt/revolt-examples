@@ -8,6 +8,7 @@ CURRENT_STATION_KEY = Bytes("cur_station")
 COURIER_ID_KEY = Bytes("courier_id")
 TOTAL_TRIPS_KEY = Bytes("total_trips")
 
+
 def approval_program():
     # Parametri del contratto
     courier_id = Txn.application_args[0]
@@ -16,12 +17,12 @@ def approval_program():
 
     # Condizioni iniziali
     on_creation = Seq(
-            App.globalPut(COURIER_ID_KEY, courier_id),
-            App.globalPut(CURRENT_STATION_KEY, Bytes("")),
-            App.globalPut(TOTAL_TRIPS_KEY, Int(0)),
-            Return(Int(1)),
-    )   
-    
+        App.globalPut(COURIER_ID_KEY, courier_id),
+        App.globalPut(CURRENT_STATION_KEY, Bytes("")),
+        App.globalPut(TOTAL_TRIPS_KEY, Int(0)),
+        Return(Int(1)),
+    )
+
     # Arrivo del corriere in una stazione
     on_arrival = Seq(
         [
@@ -44,10 +45,12 @@ def approval_program():
                             station == Bytes(STATIONS[-1]),
                             Seq(
                                 [
-                                    App.globalPut(CURRENT_STATION_KEY, Bytes("")),
+                                    App.globalPut(
+                                        CURRENT_STATION_KEY, Bytes("")),
                                     App.globalPut(
                                         TOTAL_TRIPS_KEY,
-                                        App.globalGet(TOTAL_TRIPS_KEY) + Int(1),
+                                        App.globalGet(
+                                            TOTAL_TRIPS_KEY) + Int(1),
                                     ),
                                 ]
                             ),

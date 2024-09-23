@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "corso-tracciabilita"
+version = "0.1.0"
+description = ""
+authors = ["Matias Torres <matias.torres@avvale.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+requests = "^2.32.3"
+pydantic = "^2.8.2"
+pyteal = "^0.26.1"
+py-algorand-sdk = "^2.6.1"
+black = "^24.8.0"
+pydantic-settings = "^2.4.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

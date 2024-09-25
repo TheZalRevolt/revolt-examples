@@ -77,7 +77,7 @@ def create_app(
 
     # Recupera i parametri consigliati per la transazione
     params = client.suggested_params()
-    
+
     # Impostiamo il parametro flat_fee su True per pagare la tariffa fissa e non la tariffa in base al byte
     params.flat_fee = True
     # Tariffa fissa di 1000 microAlgos (0.001 Algos)
@@ -102,7 +102,7 @@ def create_app(
     wait_for_confirmation(client, tx_id)
 
     transaction_response = client.pending_transaction_info(tx_id)
-    
+
     app_id = transaction_response["application-index"]
     print("Created new app-id: ", app_id)
 

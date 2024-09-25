@@ -1,0 +1,77 @@
+#pragma version 6
+txn ApplicationID
+int 0
+==
+bnz main_l10
+txn OnCompletion
+int NoOp
+==
+bnz main_l3
+err
+main_l3:
+txna ApplicationArgs 0
+byte "update_user"
+==
+bnz main_l9
+txna ApplicationArgs 0
+byte "change_owner"
+==
+bnz main_l8
+txna ApplicationArgs 0
+byte "delete_user"
+==
+bnz main_l7
+err
+main_l7:
+callsub deleteuser_2
+return
+main_l8:
+callsub changeowner_1
+return
+main_l9:
+callsub updateuser_0
+return
+main_l10:
+byte "OWNER"
+txn Sender
+app_global_put
+int 1
+return
+
+// update_user
+updateuser_0:
+txn Sender
+byte "OWNER"
+app_global_get
+==
+assert
+txna ApplicationArgs 1
+txna ApplicationArgs 2
+app_global_put
+int 1
+retsub
+
+// change_owner
+changeowner_1:
+txn Sender
+byte "OWNER"
+app_global_get
+==
+assert
+byte "OWNER"
+txna Accounts 1
+app_global_put
+int 1
+retsub
+
+// delete_user
+deleteuser_2:
+txn Sender
+byte "OWNER"
+app_global_get
+==
+assert
+txna ApplicationArgs 1
+app_global_del
+int 1
+retsub

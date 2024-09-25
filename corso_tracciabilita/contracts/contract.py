@@ -1,87 +1,65 @@
 from pyteal import *
 
-# Definiamo le stazioni di consegna
-STATIONS = ["stazione1", "stazione2", "stazione3", "stazione4"]
-ALGO = Int(1_000_000)
-# Definiamo le chiavi di stato
-CURRENT_STATION_KEY = Bytes("cur_station")
-COURIER_ID_KEY = Bytes("courier_id")
-TOTAL_TRIPS_KEY = Bytes("total_trips")
+OWNER = Bytes("OWNER")
 
-
-def approval_program():
-    # Parametri del contratto
-    courier_id = Txn.application_args[0]
-    station = Txn.application_args[1]
-    action = Txn.application_args[2]  # "arrivo" o "partenza"
-
-    # Condizioni iniziali
-    on_creation = Seq(
-        App.globalPut(COURIER_ID_KEY, courier_id),
-        App.globalPut(CURRENT_STATION_KEY, Bytes("")),
-        App.globalPut(TOTAL_TRIPS_KEY, Int(0)),
+@Subroutine(TealType.uint64)
+def update_user():
+    user_id = Txn.application_args[1]
+    user_value = Txn.application_args[2]
+    sender = Txn.sender() # Txn.accounts[0] Sono la stessa cosa
+    
+    return Seq(
+        Assert(sender == App.globalGet(OWNER)),
+        App.globalPut(user_id, user_value),
         Return(Int(1)),
     )
 
-    # Arrivo del corriere in una stazione
-    on_arrival = Seq(
-        [
-            Assert(action == Bytes("arrivo")),
-            App.globalPut(CURRENT_STATION_KEY, station),
-            Return(Int(1)),
-        ]
+@Subroutine(TealType.uint64)
+def change_owner():
+    new_owner = Txn.accounts[1] # Nella posizione 0 c'è chi ha chiamato il contratto
+    
+    sender = Txn.sender()
+    
+    return Seq(
+        Assert(sender == App.globalGet(OWNER)),
+        App.globalPut(OWNER, new_owner),
+        Return(Int(1)),
     )
 
-    # Partenza del corriere da una stazione
-    on_departure = Seq(
-        [
-            Assert(action == Bytes("partenza")),
-            If(
-                App.globalGet(CURRENT_STATION_KEY) == station,
-                Seq(
-                    [
-                        # Controllo se è l'ultima stazione
-                        If(
-                            station == Bytes(STATIONS[-1]),
-                            Seq(
-                                [
-                                    App.globalPut(
-                                        CURRENT_STATION_KEY, Bytes("")),
-                                    App.globalPut(
-                                        TOTAL_TRIPS_KEY,
-                                        App.globalGet(
-                                            TOTAL_TRIPS_KEY) + Int(1),
-                                    ),
-                                ]
-                            ),
-                            # Non è l'ultima stazione, quindi resetto solo la stazione corrente
-                            App.globalPut(CURRENT_STATION_KEY, Bytes("")),
-                        )
-                    ]
-                ),
-                Reject(),
-            ),
-            Return(Int(1)),
-        ]
+@Subroutine(TealType.uint64)
+def delete_user():
+    user_id = Txn.application_args[1]
+    sender = Txn.sender()
+    
+    return Seq(
+        Assert(sender == App.globalGet(OWNER)),
+        App.globalDel(user_id),
+        Return(Int(1)),
     )
 
+def approval_program():
+    # Condizioni iniziali
+    on_creation = Seq(
+        App.globalPut(OWNER, Txn.sender()),
+        Return(Int(1)),
+    )
+    
+    on_handle = Cond(
+        [Txn.application_args[0] == Bytes("update_user"), Return(update_user())],
+        [Txn.application_args[0] == Bytes("change_owner"), Return(change_owner())],
+        [Txn.application_args[0] == Bytes("delete_user"), Return(delete_user())],
+    )
+    
     # Gestione delle chiamate del contratto
     program = Cond(
         [Txn.application_id() == Int(0), on_creation],
-        [
-            Txn.application_id() != Int(0),
-            Cond(
-                [action == Bytes("arrivo"), on_arrival],
-                [action == Bytes("partenza"), on_departure],
-            ),
-        ],
+        [Txn.on_completion() == OnComplete.NoOp, on_handle],
     )
 
     return compileTeal(program, mode=Mode.Application, version=6)
 
-
 def clear_state_program():
-    program = Return(Int(1))
+    program = Return(Int(0))
     return compileTeal(program, mode=Mode.Application, version=6)
 
 
@@ -92,7 +70,7 @@ def compile_contract():
     """
 
     approval = approval_program()
-    approval_file = open("compiled_contracts/approva.teal", "w")
+    approval_file = open("compiled_contracts/approval.teal", "w")
     approval_file.write(approval)
 
     clear = clear_state_program()
